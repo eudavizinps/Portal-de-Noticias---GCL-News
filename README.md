@@ -2,7 +2,7 @@
 
 **Portal publicado no Cloudflare Workers.** Front-end em React + TypeScript, API em TypeScript com Hono, banco Cloudflare D1 (SQLite) e coleta de feeds RSS/Atom.
 
-Produção: <https://gcl-radar.davi-de-paula035.workers.dev>. O banco D1 e a chave administrativa já estão configurados. A chave não fica no repositório.
+Produção: <https://gcl-news.davi-de-paula035.workers.dev>. O banco D1 e a chave administrativa já estão configurados. A chave não fica no repositório.
 
 ## Funcionalidades implementadas
 
@@ -113,7 +113,7 @@ Para executar o mesmo fluxo manualmente, use `npm run typecheck`, `npm test`, `n
 
 ### Conectar seu domínio
 
-No painel Cloudflare, acesse **Workers & Pages → gcl-radar → Settings → Domains & Routes → Add → Custom Domain** e associe seu domínio ou subdomínio. Um exemplo é `news.seudominio.com.br`, substituindo pelo seu domínio real. Para isso, seu domínio deve estar sob gerenciamento DNS compatível no Cloudflare. O cadastro/compra do domínio não está incluído neste projeto.
+No painel Cloudflare, acesse **Workers & Pages → gcl-news → Settings → Domains & Routes → Add → Custom Domain** e associe seu domínio ou subdomínio. Um exemplo é `news.seudominio.com.br`, substituindo pelo seu domínio real. Para isso, seu domínio deve estar sob gerenciamento DNS compatível no Cloudflare. O cadastro/compra do domínio não está incluído neste projeto.
 
 A URL será pública para você e sua sócia, de qualquer dispositivo. Não é necessária conta para ler notícias. **Favoritos são locais do navegador**, e o painel administrativo exige a chave.
 

@@ -1,6 +1,6 @@
 # Status da entrega
 
-**Atualizado em 11/11/2026:** o portal está publicado em <https://gcl-radar.davi-de-paula035.workers.dev>, com API, banco D1, chave administrativa e coleta agendada a cada três horas.
+**Atualizado em 11/11/2026:** o portal está publicado em <https://gcl-news.davi-de-paula035.workers.dev>, com API, banco D1, chave administrativa e coleta agendada a cada três horas.
 
 ## Verificações realizadas
 

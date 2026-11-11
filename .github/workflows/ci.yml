@@ -23,7 +23,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     concurrency:
-      group: gcl-radar-production
+      group: gcl-news-production
       cancel-in-progress: false
     env:
       CLOUDFLARE_ACCOUNT_ID: 15705ccefdfbf96076615920c8f680ac
