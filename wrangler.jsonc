@@ -13,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "gcl-radar-db",
-      "database_id": "00000000-0000-0000-0000-000000000000", // ID fictício válido para desenvolvimento local; TROCAR pelo D1 real antes do deploy
+      "database_id": "e3d54d6a-e081-4188-90e9-64f036078442",
       "migrations_dir": "migrations"
     }
   ],
