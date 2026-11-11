@@ -1,8 +1,8 @@
 # GCL Radar — Portal de notícias full-stack
 
-**Projeto pronto para configuração e implantação.** Front-end em React + TypeScript, API em TypeScript com Hono, banco Cloudflare D1 (SQLite), coleta de feeds RSS/Atom e publicação no Cloudflare Workers com domínio próprio.
+**Portal publicado no Cloudflare Workers.** Front-end em React + TypeScript, API em TypeScript com Hono, banco Cloudflare D1 (SQLite) e coleta de feeds RSS/Atom.
 
-O repositório contém o código-fonte completo. A **publicação pública ainda não foi executada**: ela exige uma conta Cloudflare, a criação do banco e configuração de uma chave de administração.
+Produção: <https://gcl-radar.davi-de-paula035.workers.dev>. O banco D1 e a chave administrativa já estão configurados. A chave não fica no repositório.
 
 ## Funcionalidades implementadas
 
@@ -60,9 +60,15 @@ npm run dev
 
 Abra `http://localhost:5173`. Na primeira execução, acesse `/admin`, informe sua chave de `.dev.vars` e clique em **Sincronizar RSS agora**. As notícias aparecerão no portal. Se você executar apenas `npm run dev` sem a API, a interface entra em **demonstração local identificada** com cinco exemplos do arquivo `frontend/data/demo.ts`. Ela **não simula atualização real**.
 
-> A configuração `wrangler.jsonc` contém um marcador para o ID do banco remoto. O modo de desenvolvimento local pode exigir substituir esse marcador por um UUID de D1 válido depois de criar o banco remoto, conforme a versão do Wrangler. A operação remota nunca usa o banco local.
+> A configuração `wrangler.jsonc` aponta para o banco D1 de produção. O modo local usa um banco separado; a operação remota nunca usa o banco local.
 
-## Publicar no Cloudflare — passo a passo
+## Atualização automática
+
+O workflow `.github/workflows/ci.yml` valida todos os pushes e pull requests. Em pushes na branch `main`, depois de passar pela checagem de tipos, testes e build, ele aplica as migrações D1 pendentes e publica o Worker. O token de implantação deve ficar apenas no segredo `CLOUDFLARE_API_TOKEN` do repositório no GitHub, com acesso restrito à conta Cloudflare deste projeto, ao Worker e ao D1. O ID da conta, que não é uma credencial, está no workflow.
+
+Para executar o mesmo fluxo manualmente, use `npm run typecheck`, `npm test`, `npm run build`, `npm run db:remote` e `npx wrangler deploy` nessa ordem.
+
+## Publicar em outra conta Cloudflare — passo a passo
 
 1. Na pasta do projeto, instale as dependências:
 
@@ -77,7 +83,7 @@ Abra `http://localhost:5173`. Na primeira execução, acesse `/admin`, informe s
    npx wrangler d1 create gcl-radar-db
    ```
 
-3. Copie o **database_id** real retornado para `d1_databases[0].database_id` no arquivo `wrangler.jsonc`, substituindo o UUID fictício `00000000-0000-0000-0000-000000000000`.
+3. Copie o **database_id** retornado para `d1_databases[0].database_id` no arquivo `wrangler.jsonc`, substituindo o ID da conta atual.
 
 4. Aplique as migrações no banco remoto:
 
@@ -99,7 +105,7 @@ Abra `http://localhost:5173`. Na primeira execução, acesse `/admin`, informe s
    npm run deploy
    ```
 
-   O Wrangler apresentará uma URL parecida com `https://gcl-radar.<subdominio>.workers.dev`. **Essa URL só existirá após um deploy bem-sucedido; não está criada neste pacote.**
+   O Wrangler apresentará a URL `workers.dev` da conta usada nesse deploy.
 
 7. Acesse `https://<seu-endereco>/admin`, informe a chave e use **Sincronizar RSS agora** para a primeira coleta. Depois disso, a coleta ocorrerá a cada três horas nos horários UTC indicados no `wrangler.jsonc` (`17 */3 * * *`). A edição diária é fixada no primeiro acesso do dia, hora de Brasília.
 

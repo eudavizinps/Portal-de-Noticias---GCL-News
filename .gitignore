@@ -3,6 +3,8 @@ dist/
 *.tsbuildinfo
 .wrangler/
 .dev.vars
+.cloudflare-deploy-token
+.deploy-tools/
 .env
 .env.*
 !.env.example
