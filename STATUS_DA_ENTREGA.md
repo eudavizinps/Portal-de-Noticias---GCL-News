@@ -8,10 +8,11 @@
 - As duas migrações SQL foram aplicadas no D1 de produção.
 - A página inicial, `/api/health` e `/api/status` responderam com HTTP 200.
 - A primeira sincronização importou 44 notícias de 11 fontes. A fonte BleepingComputer retornou HTTP 403 e precisa de revisão.
+- O primeiro push na `main` passou no GitHub Actions: checagem de tipos, testes, build, migrações D1 e deploy no Cloudflare.
 
 ## Pendências
 
-- Validar o primeiro deploy automático pela branch `main`. O segredo `CLOUDFLARE_API_TOKEN` já foi registrado no GitHub.
+- Renovar o token `CLOUDFLARE_API_TOKEN` antes de 11/11/2027 para manter os deploys automáticos.
 - Revisar os termos de uso dos feeds e imagens antes de monetizar ou redistribuir conteúdo.
 - Associar um domínio próprio, se desejado. A URL `workers.dev` já está ativa.
 
