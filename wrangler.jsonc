@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "gcl-radar",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-11-10",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gcl-radar-db",
+      "database_id": "00000000-0000-0000-0000-000000000000", // ID fictício válido para desenvolvimento local; TROCAR pelo D1 real antes do deploy
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    "crons": ["17 */3 * * *"]
+  },
+  "observability": { "enabled": true }
+}
