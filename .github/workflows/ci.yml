@@ -1,4 +1,4 @@
-name: Validar e publicar GCL Radar
+name: Validar e publicar GCL NEWS
 on:
   push:
   pull_request:

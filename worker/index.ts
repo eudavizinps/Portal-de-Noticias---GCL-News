@@ -22,7 +22,7 @@ app.use('/api/*', async(c,next)=> {
   c.header('Cache-Control', c.req.method === 'GET' && !c.req.path.startsWith('/api/admin/') ? 'public, max-age=45, stale-while-revalidate=120' : 'no-store')
   c.header('X-Content-Type-Options','nosniff')
 })
-app.get('/api/health',c=>c.json({status:'ok',time:new Date().toISOString(),service:'GCL Radar API'}))
+app.get('/api/health',c=>c.json({status:'ok',time:new Date().toISOString(),service:'GCL NEWS API'}))
 app.get('/api/sources',c=>c.json({items:FEEDS.map(f=>({name:f.name,category:f.category,site:new URL(f.url).host,language:f.language}))}))
 app.get('/api/status',async c=>{
   const last=await c.env.DB.prepare('SELECT started_at,finished_at,status,imported,feeds_ok,feeds_failed FROM ingest_runs ORDER BY started_at DESC LIMIT 1').first()
