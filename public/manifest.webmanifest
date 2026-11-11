@@ -8,5 +8,5 @@
   "background_color": "#090a12",
   "theme_color": "#7950e8",
   "lang": "pt-BR",
-  "icons": [{"src":"/favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+  "icons": [{"src":"/gcl-news-logo.png","sizes":"1254x1254","type":"image/png","purpose":"any"}]
 }

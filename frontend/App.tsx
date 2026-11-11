@@ -39,7 +39,7 @@ function useTheme() {
   return {theme,toggle:()=>setTheme(t=>t==='dark'?'light':'dark')}
 }
 function Brand(){return <Link className="brand" to="/" aria-label="GCL NEWS - página inicial">
-  <span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 42 42"><path d="M34 13A15 15 0 1 0 34 29M25 13H34V21H26M25 29H34" stroke="currentColor" strokeWidth="4.1" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
+  <span className="brand-mark" aria-hidden="true"><img src="/gcl-news-logo.png" alt="" /></span>
   <span className="brand-copy"><b>GCL<span>NEWS</span></b><small>INTELIGÊNCIA EM NOTÍCIAS</small></span>
 </Link>}
 function Header({savedCount,theme,onTheme}:{savedCount:number;theme:string;onTheme:()=>void}){
