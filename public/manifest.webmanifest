@@ -1,0 +1,12 @@
+{
+  "name": "GCL Radar — Tecnologia e negócios",
+  "short_name": "GCL Radar",
+  "description": "Portal de notícias de inteligência artificial, programação, cibersegurança e negócios.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#090a12",
+  "theme_color": "#7950e8",
+  "lang": "pt-BR",
+  "icons": [{"src":"/favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+}
