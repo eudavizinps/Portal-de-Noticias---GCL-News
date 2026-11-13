@@ -1,9 +1,11 @@
 import { Hono } from 'hono'
 import { FEEDS, type NewsCategory } from './sources'
 import { ingestAll } from './ingest'
+import { translatePending } from './translation'
 
 interface Env {
   DB: D1Database
+  AI: Ai
   ADMIN_API_KEY: string
   ASSETS: Fetcher
 }
@@ -15,11 +17,15 @@ const dayInBrazil=()=> {
   const read=(t:string)=>parts.find(p=>p.type===t)?.value ?? ''
   return `${read('year')}-${read('month')}-${read('day')}`
 }
-const selectArticle=`id,slug,title,excerpt,image_url,category,source_name,source_url,published_at,fetched_at,relevance_score,language`
-async function syncAndRefreshEdition(db:D1Database) {
-  const outcome=await ingestAll(db)
-  if(outcome.feeds_ok) await db.prepare('DELETE FROM edition_items WHERE edition_date=?').bind(dayInBrazil()).run()
-  return outcome
+const publicArticle=(prefix='')=>`(${prefix}language!='en' OR (${prefix}title_pt IS NOT NULL AND ${prefix}excerpt_pt IS NOT NULL))`
+const displayTitle=(prefix='')=>`CASE WHEN ${prefix}language='en' THEN ${prefix}title_pt ELSE ${prefix}title END`
+const displayExcerpt=(prefix='')=>`CASE WHEN ${prefix}language='en' THEN ${prefix}excerpt_pt ELSE ${prefix}excerpt END`
+const selectArticle=(prefix='')=>`${prefix}id,${prefix}slug,${displayTitle(prefix)} AS title,${displayExcerpt(prefix)} AS excerpt,${prefix}image_url,${prefix}category,${prefix}source_name,${prefix}source_url,${prefix}published_at,${prefix}fetched_at,${prefix}relevance_score,${prefix}language`
+async function syncAndRefreshEdition(db:D1Database,ai:Ai) {
+  const outcome=await ingestAll(db,ai)
+  const translations=await translatePending(db,ai,4)
+  if(outcome.feeds_ok || translations.translated) await db.prepare('DELETE FROM edition_items WHERE edition_date=?').bind(dayInBrazil()).run()
+  return {...outcome,translations}
 }
 
 app.use('/api/*', async(c,next)=> {
@@ -31,17 +37,18 @@ app.get('/api/health',c=>c.json({status:'ok',time:new Date().toISOString(),servi
 app.get('/api/sources',c=>c.json({items:FEEDS.map(f=>({name:f.name,category:f.category,site:new URL(f.url).host,language:f.language}))}))
 app.get('/api/status',async c=>{
   const last=await c.env.DB.prepare('SELECT started_at,finished_at,status,imported,feeds_ok,feeds_failed FROM ingest_runs ORDER BY started_at DESC LIMIT 1').first()
-  const count=await c.env.DB.prepare('SELECT count(*) AS total FROM articles WHERE active=1').first<{total:number}>()
-  return c.json({articles:count?.total??0,last_sync:last??null,sources:FEEDS.length})
+  const count=await c.env.DB.prepare(`SELECT count(*) AS total FROM articles WHERE active=1 AND ${publicArticle()}`).first<{total:number}>()
+  const pending=await c.env.DB.prepare(`SELECT count(*) AS total FROM articles WHERE active=1 AND language='en' AND (title_pt IS NULL OR excerpt_pt IS NULL)`).first<{total:number}>()
+  return c.json({articles:count?.total??0,translations_pending:pending?.total??0,last_sync:last??null,sources:FEEDS.length})
 })
 app.get('/api/edition',async c=>{
   const date=dayInBrazil()
-  const aliased = selectArticle.split(',').map(name=>'a.'+name.trim()).join(',')
-  let stored=await c.env.DB.prepare(`SELECT ${aliased} FROM edition_items e JOIN articles a ON a.id=e.article_id WHERE e.edition_date=? AND a.active=1 ORDER BY e.position`).bind(date).all()
+  const aliased = selectArticle('a.')
+  let stored=await c.env.DB.prepare(`SELECT ${aliased} FROM edition_items e JOIN articles a ON a.id=e.article_id WHERE e.edition_date=? AND a.active=1 AND ${publicArticle('a.')} ORDER BY e.position`).bind(date).all()
   let rows=(stored.results??[]) as Record<string,unknown>[]
   if(rows.length<5){
     // Primeiro acesso do dia: montar uma seleção diversificada e registrar no D1.
-    const recent=await c.env.DB.prepare(`SELECT ${selectArticle} FROM articles WHERE active=1 AND published_at >= ? ORDER BY published_at DESC LIMIT 240`).bind(new Date(Date.now()-7*86400000).toISOString()).all()
+    const recent=await c.env.DB.prepare(`SELECT ${selectArticle()} FROM articles WHERE active=1 AND ${publicArticle()} AND published_at >= ? ORDER BY published_at DESC LIMIT 240`).bind(new Date(Date.now()-7*86400000).toISOString()).all()
     const previous=await c.env.DB.prepare(`SELECT article_id FROM edition_items WHERE edition_date<? AND edition_date>=?`).bind(date,new Date(Date.now()-3*86400000).toISOString().slice(0,10)).all<{article_id:string}>()
     const used=new Set((previous.results??[]).map(r=>r.article_id))
     const candidates=(recent.results??[]) as Record<string,unknown>[]
@@ -70,7 +77,7 @@ app.get('/api/edition',async c=>{
     }
     if(chosen.length>0){
       await c.env.DB.batch(chosen.slice(0,5).map((a,i)=>c.env.DB.prepare('INSERT OR IGNORE INTO edition_items(edition_date,position,article_id) VALUES (?,?,?)').bind(date,i+1,a.id)))
-      stored=await c.env.DB.prepare(`SELECT ${aliased} FROM edition_items e JOIN articles a ON a.id=e.article_id WHERE e.edition_date=? AND a.active=1 ORDER BY e.position`).bind(date).all()
+      stored=await c.env.DB.prepare(`SELECT ${aliased} FROM edition_items e JOIN articles a ON a.id=e.article_id WHERE e.edition_date=? AND a.active=1 AND ${publicArticle('a.')} ORDER BY e.position`).bind(date).all()
       rows=(stored.results??[]) as Record<string,unknown>[]
     }
   }
@@ -83,16 +90,16 @@ app.get('/api/articles',async c=>{
   if (category&&!CATEGORIES.has(category as NewsCategory)) return c.json(jsonError('Categoria inválida'),400)
   const page=Math.max(1,Math.min(500,Number(c.req.query('page'))||1))
   const limit=Math.max(1,Math.min(24,Number(c.req.query('limit'))||12))
-  let where='WHERE active=1', args:unknown[]=[]
+  let where=`WHERE active=1 AND ${publicArticle()}`, args:unknown[]=[]
   if(category){where+=' AND category=?';args.push(category)}
-  if(q){where+=' AND (instr(lower(title),lower(?))>0 OR instr(lower(excerpt),lower(?))>0 OR instr(lower(source_name),lower(?))>0)';args.push(q,q,q)}
+  if(q){where+=` AND (instr(lower(${displayTitle()}),lower(?))>0 OR instr(lower(${displayExcerpt()}),lower(?))>0 OR instr(lower(source_name),lower(?))>0)`;args.push(q,q,q)}
   const count=await c.env.DB.prepare(`SELECT count(*) AS total FROM articles ${where}`).bind(...args).first<{total:number}>()
-  const found=await c.env.DB.prepare(`SELECT ${selectArticle} FROM articles ${where} ORDER BY published_at DESC LIMIT ? OFFSET ?`).bind(...args,limit,(page-1)*limit).all()
+  const found=await c.env.DB.prepare(`SELECT ${selectArticle()} FROM articles ${where} ORDER BY published_at DESC LIMIT ? OFFSET ?`).bind(...args,limit,(page-1)*limit).all()
   const last=await c.env.DB.prepare('SELECT finished_at FROM ingest_runs WHERE status=? ORDER BY started_at DESC LIMIT 1').bind('complete').first<{finished_at:string}>()
   return c.json({items:found.results??[],total:count?.total??0,page,limit,latest_update:last?.finished_at??null})
 })
 app.get('/api/articles/:slug',async c=>{
-  const item=await c.env.DB.prepare(`SELECT ${selectArticle} FROM articles WHERE slug=? AND active=1`).bind(c.req.param('slug')).first()
+  const item=await c.env.DB.prepare(`SELECT ${selectArticle()} FROM articles WHERE slug=? AND active=1 AND ${publicArticle()}`).bind(c.req.param('slug')).first()
   return item?c.json({item}):c.json(jsonError('Notícia não encontrada'),404)
 })
 // Admin API: token stays server-side. Do not place it in the React bundle or public variables.
@@ -107,12 +114,17 @@ app.use('/api/admin/*',async(c,next)=>{
   await next()
 })
 app.get('/api/admin/articles',async c=>{
-  const articles=await c.env.DB.prepare(`SELECT id,slug,title,source_name,published_at,active FROM articles ORDER BY fetched_at DESC LIMIT 40`).all()
+  const articles=await c.env.DB.prepare(`SELECT id,slug,COALESCE(title_pt,title) AS title,source_name,published_at,active FROM articles ORDER BY fetched_at DESC LIMIT 40`).all()
   return c.json({items:articles.results??[]})
 })
 app.post('/api/admin/refresh',async c=>{
-  const outcome=await syncAndRefreshEdition(c.env.DB)
+  const outcome=await syncAndRefreshEdition(c.env.DB,c.env.AI)
   return c.json(outcome,outcome.feeds_ok?200:502)
+})
+app.post('/api/admin/translate',async c=>{
+  const result=await translatePending(c.env.DB,c.env.AI,8)
+  if(result.translated) await c.env.DB.prepare('DELETE FROM edition_items WHERE edition_date=?').bind(dayInBrazil()).run()
+  return c.json(result,result.translated || !result.pending?200:503)
 })
 app.post('/api/admin/articles',async c=>{
   let data:Record<string,unknown>
@@ -143,5 +155,5 @@ app.onError((err,c)=>{console.error('API error',err);return c.json(jsonError('Fa
 
 export default {
   fetch:(request:Request,env:Env,ctx:ExecutionContext)=>app.fetch(request,env,ctx),
-  scheduled:async (_controller:ScheduledController,env:Env,ctx:ExecutionContext)=>{ ctx.waitUntil(syncAndRefreshEdition(env.DB).then(r=>console.log('sync',r)).catch(err=>console.error('sync failed',err))) },
+  scheduled:async (_controller:ScheduledController,env:Env,ctx:ExecutionContext)=>{ ctx.waitUntil(syncAndRefreshEdition(env.DB,env.AI).then(r=>console.log('sync',r)).catch(err=>console.error('sync failed',err))) },
 } satisfies ExportedHandler<Env>

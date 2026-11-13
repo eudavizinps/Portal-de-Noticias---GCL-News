@@ -8,7 +8,7 @@ export type Feed = {
 }
 
 // Feeds públicos. A disponibilidade de terceiros pode mudar sem aviso.
-// O portal nunca publica notícias inventadas: o título, resumo e URL vêm do RSS original.
+// Título, resumo e URL vêm do RSS; títulos e resumos em inglês são traduzidos para exibição.
 export const FEEDS: Feed[] = [
   { name: 'MIT Technology Review Brasil', url: 'https://mittechreview.com.br/feed/', category: 'ia', language: 'pt' },
   { name: 'Olhar Digital', url: 'https://olhardigital.com.br/editorias/noticias/feed/', category: 'tecnologia', language: 'pt' },

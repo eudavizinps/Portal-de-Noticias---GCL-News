@@ -1,5 +1,6 @@
 import { XMLParser } from 'fast-xml-parser'
 import { FEEDS, type Feed, type NewsCategory } from './sources'
+import { translateEnglish, type Translation } from './translation'
 
 export interface NewsRow {
   id: string; slug: string; title: string; excerpt: string; image_url: string | null;
@@ -67,7 +68,7 @@ export async function fetchFeed(feed: Feed): Promise<NewsRow[]> {
   const timeout = setTimeout(()=>controller.abort(), 10000)
   let text = ''
   try {
-    const res=await fetch(feed.url, { headers: { 'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml', 'User-Agent':'GCLRadar/1.0 (+news aggregator; contact site administrator)' }, signal: controller.signal })
+    const res=await fetch(feed.url, { headers: { 'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml', 'User-Agent':'GCLNEWS/1.0 (+news aggregator; contact site administrator)' }, signal: controller.signal })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     if (Number(res.headers.get('content-length')) > 3_000_000) throw new Error('Feed exceeds size limit')
     text=(await res.text()).slice(0,3_000_000)
@@ -97,26 +98,50 @@ export async function fetchFeed(feed: Feed): Promise<NewsRow[]> {
   return rows.filter(r=>r.title.length>=12).sort((a,b)=>b.relevance_score-a.relevance_score||b.published_at.localeCompare(a.published_at)).slice(0,4)
 }
 
-export async function ingestAll(db: D1Database): Promise<{imported:number;feeds_ok:number;feeds_failed:number;details:string[]}> {
+type KnownTranslation = { source_url: string; title: string; excerpt: string; title_pt: string | null; excerpt_pt: string | null }
+
+export async function ingestAll(db: D1Database, ai: Ai): Promise<{imported:number;feeds_ok:number;feeds_failed:number;details:string[]}> {
   const started=new Date().toISOString(), runId=crypto.randomUUID(), details:string[]=[]
   await db.prepare('INSERT INTO ingest_runs (id,started_at,status) VALUES (?,?,?)').bind(runId,started,'running').run()
   let imported=0,feeds_ok=0,feeds_failed=0
   const results=await Promise.allSettled(FEEDS.map(fetchFeed))
+  const englishUrls=[...new Set(results.flatMap((result,i)=>result.status==='fulfilled' && FEEDS[i].language==='en'
+    ? result.value.map(row=>row.source_url) : []))]
+  const known=new Map<string,KnownTranslation>()
+  if(englishUrls.length) {
+    const found=await db.prepare(`SELECT source_url,title,excerpt,title_pt,excerpt_pt FROM articles
+      WHERE source_url IN (${englishUrls.map(()=>'?').join(',')})`).bind(...englishUrls).all<KnownTranslation>()
+    for(const row of found.results??[]) known.set(row.source_url,row)
+  }
   for(let i=0;i<results.length;i++) {
     const result=results[i], source=FEEDS[i]
     if(result.status==='rejected') {feeds_failed++;details.push(`${source.name}: ${String(result.reason).slice(0,120)}`);continue}
     feeds_ok++
     const rows=result.value
+    const prepared=await Promise.all(rows.map(async row=>{
+      if(row.language!=='en') return { ...row, title_pt:null, excerpt_pt:null }
+      const old=known.get(row.source_url)
+      let translation:Translation
+      if(old?.title===row.title && old.excerpt===row.excerpt && old.title_pt && old.excerpt_pt) {
+        translation={title_pt:old.title_pt,excerpt_pt:old.excerpt_pt}
+      } else {
+        try { translation=await translateEnglish(ai,row.title,row.excerpt) }
+        catch(error) { details.push(`${source.name}: tradução indisponível para ${row.source_url}: ${String(error).slice(0,100)}`);return null }
+      }
+      return { ...row, ...translation }
+    }))
+    const publishable=prepared.filter((row):row is NonNullable<typeof row>=>row!==null)
     // D1 batch keeps writes short. URLs are unique: a repeat sync won't create duplicates.
-    if(rows.length) {
-      const stmts=rows.map(r=>db.prepare(`INSERT INTO articles
-        (id,slug,title,excerpt,image_url,category,source_name,source_url,published_at,fetched_at,relevance_score,language)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    if(publishable.length) {
+      const stmts=publishable.map(r=>db.prepare(`INSERT INTO articles
+        (id,slug,title,excerpt,image_url,category,source_name,source_url,published_at,fetched_at,relevance_score,language,title_pt,excerpt_pt)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(source_url) DO UPDATE SET
         title=excluded.title,excerpt=excluded.excerpt,image_url=COALESCE(excluded.image_url,articles.image_url),
-        fetched_at=excluded.fetched_at,relevance_score=excluded.relevance_score,category=excluded.category`)
-        .bind(r.id,r.slug,r.title,r.excerpt,r.image_url,r.category,r.source_name,r.source_url,r.published_at,r.fetched_at,r.relevance_score,r.language))
-      try { await db.batch(stmts); imported+=rows.length }
+        fetched_at=excluded.fetched_at,relevance_score=excluded.relevance_score,category=excluded.category,
+        title_pt=excluded.title_pt,excerpt_pt=excluded.excerpt_pt,translation_attempts=0`)
+        .bind(r.id,r.slug,r.title,r.excerpt,r.image_url,r.category,r.source_name,r.source_url,r.published_at,r.fetched_at,r.relevance_score,r.language,r.title_pt,r.excerpt_pt))
+      try { await db.batch(stmts); imported+=publishable.length }
       catch(err) {feeds_failed++;details.push(`${source.name}: database write failed: ${String(err).slice(0,80)}`)}
     }
   }

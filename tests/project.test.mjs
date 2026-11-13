@@ -8,7 +8,7 @@ const require=createRequire(import.meta.url)
 const ts=require('typescript')
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
 const read=p=>fs.readFileSync(path.join(root,p),'utf8')
-const srcFiles=['frontend/App.tsx','frontend/main.tsx','frontend/hooks/useNews.ts','frontend/components/ArticleCard.tsx','frontend/components/ArticleImage.tsx','frontend/types.ts','frontend/utils.ts','frontend/data/demo.ts','worker/index.ts','worker/ingest.ts','worker/sources.ts','vite.config.ts']
+const srcFiles=['frontend/App.tsx','frontend/main.tsx','frontend/hooks/useNews.ts','frontend/components/ArticleCard.tsx','frontend/components/ArticleImage.tsx','frontend/types.ts','frontend/utils.ts','frontend/data/demo.ts','worker/index.ts','worker/ingest.ts','worker/translation.ts','worker/sources.ts','vite.config.ts']
 test('Todos os arquivos TS e TSX têm sintaxe válida',()=>{
  for(const file of srcFiles){
    const result=ts.transpileModule(read(file),{fileName:file,reportDiagnostics:true,compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}})
@@ -18,6 +18,7 @@ test('Todos os arquivos TS e TSX têm sintaxe válida',()=>{
 test('Migrações e configurações de hospedagem estão presentes',()=>{
  assert.match(read('migrations/0001_init.sql'),/CREATE TABLE IF NOT EXISTS articles/)
  assert.match(read('migrations/0002_editions.sql'),/CREATE TABLE IF NOT EXISTS edition_items/)
+ assert.match(read('migrations/0003_translations.sql'),/ADD COLUMN title_pt/)
  assert.match(read('wrangler.jsonc'),/\"crons\"/)
  assert.match(read('wrangler.jsonc'),/\"run_worker_first\"/)
  assert.ok(fs.existsSync(path.join(root,'public','manifest.webmanifest')))

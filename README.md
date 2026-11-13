@@ -7,16 +7,17 @@ Produção: <https://gcl-news.davi-de-paula035.workers.dev>. O banco D1 e a chav
 ## Funcionalidades implementadas
 
 - Layout editorial responsivo (desktop, tablet e celular), tema claro/escuro, carrossel com destaque automático e controle manual.
-- Cinco notícias por edição diária quando existirem pelo menos cinco itens válidos; seleção por data e relevância, com diversidade de editoria e tentativa de evitar repetições recentes.
+- Até cinco destaques atualizados após cada coleta bem-sucedida; seleção por data e relevância, com diversidade de editoria e tentativa de evitar repetições recentes.
 - Arquivo pesquisável e paginado, sete categorias, páginas individuais de notícia e compartilhamento por link.
 - Notícias salvas por dispositivo usando `localStorage` (não sincronizadas entre pessoas).
 - Imagem do feed, quando disponível; fallback com ilustrações editoriais locais; indicação da procedência da imagem.
 - Coleta automática de hora em hora e sincronização manual protegida por uma chave secreta.
+- Tradução automática para português dos títulos e resumos recebidos em inglês, com o link e o idioma original identificados. As traduções ficam salvas no D1 para evitar novas chamadas ao modelo a cada hora.
 - Cadastro e ocultação de matérias pelo painel `/admin`; fontes, dados de atualização e relatório de coleta.
-- Endpoints de leitura públicos e endpoints de administração protegidos; banco com duas migrações.
+- Endpoints de leitura públicos e endpoints de administração protegidos; banco com três migrações.
 - Metadados, favicon, PWA manifest, headers básicos de segurança e estados de carregamento/erro/vazio.
 
-**Importante:** o portal é um **agregador**, não uma redação. Mostra títulos e resumos curtos fornecidos por feeds RSS, com atribuição e links para a matéria completa na origem. As análises práticas para a GCL são sugestões temáticas (não notícias das fontes). O texto editorial não é verificado por uma equipe jornalística independente; confira a fonte para decisões importantes. Feeds externos podem mudar, exigir autorização para uso comercial ou sair do ar. O idioma original de cada feed é preservado.
+**Importante:** o portal é um **agregador**, não uma redação. Mostra títulos e resumos curtos dos feeds RSS, com atribuição e links para a matéria completa na origem. Textos de fontes em inglês são traduzidos automaticamente para português e podem conter imprecisões; o conteúdo original continua acessível pelo link da fonte. As análises práticas para a GCL são sugestões temáticas (não notícias das fontes). O texto editorial não é verificado por uma equipe jornalística independente; confira a fonte para decisões importantes. Feeds externos podem mudar, exigir autorização para uso comercial ou sair do ar.
 
 ## Tecnologias
 
@@ -27,6 +28,7 @@ Produção: <https://gcl-news.davi-de-paula035.workers.dev>. O banco D1 e a chav
 | API | Cloudflare Worker, Hono, TypeScript |
 | Banco | Cloudflare D1 / SQLite |
 | Ingestão | RSS e Atom via `fast-xml-parser` |
+| Tradução | Cloudflare Workers AI (`@cf/meta/m2m100-1.2b`) |
 | Agendamento | Cloudflare Workers Cron Triggers |
 | Hospedagem | Cloudflare Workers Static Assets (front-end e API no mesmo domínio) |
 
@@ -129,6 +131,7 @@ A URL será pública para você e sua sócia, de qualquer dispositivo. Não é n
 | GET | `/api/articles/:slug` | Resumo e dados da fonte |
 | GET | `/api/admin/articles` | Gestão de publicações (Bearer) |
 | POST | `/api/admin/refresh` | Executar coleta manual (Bearer) |
+| POST | `/api/admin/translate` | Traduzir até oito matérias antigas por chamada (Bearer) |
 | POST | `/api/admin/articles` | Publicar uma notícia verificada (Bearer) |
 | DELETE | `/api/admin/articles/:id` | Ocultar publicação (Bearer) |
 
@@ -193,4 +196,4 @@ GCL-Radar-Fullstack/
 4. Adicionar limites por IP/WAF e, se necessário, Cloudflare Access para `/admin`.
 5. Publicar política de privacidade e os canais de contato da empresa se passar a captar dados pessoais.
 
-**Limitação atual:** sem integração com tradução automática, manchetes de feeds internacionais aparecem em inglês, sempre identificadas com o idioma de origem. Para transformar esses conteúdos em português com IA sem copiar o artigo, será necessário configurar um serviço de tradução/licenciamento e uma camada de revisão editorial.
+**Tradução:** o Worker usa um modelo de tradução da Cloudflare para o título e o resumo dos feeds em inglês. O texto original é mantido no banco; se a tradução falhar, a notícia aguarda nova tentativa e não aparece em inglês no portal. A tradução não substitui revisão editorial humana. O uso do Workers AI está sujeito à franquia e aos preços da conta Cloudflare.
