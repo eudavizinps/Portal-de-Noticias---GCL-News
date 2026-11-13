@@ -11,7 +11,7 @@ Produção: <https://gcl-news.davi-de-paula035.workers.dev>. O banco D1 e a chav
 - Arquivo pesquisável e paginado, sete categorias, páginas individuais de notícia e compartilhamento por link.
 - Notícias salvas por dispositivo usando `localStorage` (não sincronizadas entre pessoas).
 - Imagem do feed, quando disponível; fallback com ilustrações editoriais locais; indicação da procedência da imagem.
-- Coleta automática a cada três horas e sincronização manual protegida por uma chave secreta.
+- Coleta automática de hora em hora e sincronização manual protegida por uma chave secreta.
 - Cadastro e ocultação de matérias pelo painel `/admin`; fontes, dados de atualização e relatório de coleta.
 - Endpoints de leitura públicos e endpoints de administração protegidos; banco com duas migrações.
 - Metadados, favicon, PWA manifest, headers básicos de segurança e estados de carregamento/erro/vazio.
@@ -107,7 +107,7 @@ Para executar o mesmo fluxo manualmente, use `npm run typecheck`, `npm test`, `n
 
    O Wrangler apresentará a URL `workers.dev` da conta usada nesse deploy.
 
-7. Acesse `https://<seu-endereco>/admin`, informe a chave e use **Sincronizar RSS agora** para a primeira coleta. Depois disso, a coleta ocorrerá a cada três horas nos horários UTC indicados no `wrangler.jsonc` (`17 */3 * * *`). A edição diária é fixada no primeiro acesso do dia, hora de Brasília.
+7. Acesse `https://<seu-endereco>/admin`, informe a chave e use **Sincronizar RSS agora** para a primeira coleta. Depois disso, a coleta ocorrerá de hora em hora, aos 17 minutos de cada hora, conforme o `wrangler.jsonc` (`17 * * * *`, em UTC). Os destaques são recalculados após cada coleta bem-sucedida.
 
 8. Verifique `/api/health`, `/api/status` e `/fontes`. Em `/api/status`, você confere a última execução e quantas fontes funcionaram.
 

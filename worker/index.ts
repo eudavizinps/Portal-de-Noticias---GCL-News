@@ -16,6 +16,11 @@ const dayInBrazil=()=> {
   return `${read('year')}-${read('month')}-${read('day')}`
 }
 const selectArticle=`id,slug,title,excerpt,image_url,category,source_name,source_url,published_at,fetched_at,relevance_score,language`
+async function syncAndRefreshEdition(db:D1Database) {
+  const outcome=await ingestAll(db)
+  if(outcome.feeds_ok) await db.prepare('DELETE FROM edition_items WHERE edition_date=?').bind(dayInBrazil()).run()
+  return outcome
+}
 
 app.use('/api/*', async(c,next)=> {
   await next()
@@ -106,8 +111,7 @@ app.get('/api/admin/articles',async c=>{
   return c.json({items:articles.results??[]})
 })
 app.post('/api/admin/refresh',async c=>{
-  const outcome=await ingestAll(c.env.DB)
-  if(outcome.feeds_ok) await c.env.DB.prepare('DELETE FROM edition_items WHERE edition_date=?').bind(dayInBrazil()).run()
+  const outcome=await syncAndRefreshEdition(c.env.DB)
   return c.json(outcome,outcome.feeds_ok?200:502)
 })
 app.post('/api/admin/articles',async c=>{
@@ -139,5 +143,5 @@ app.onError((err,c)=>{console.error('API error',err);return c.json(jsonError('Fa
 
 export default {
   fetch:(request:Request,env:Env,ctx:ExecutionContext)=>app.fetch(request,env,ctx),
-  scheduled:async (_controller:ScheduledController,env:Env,ctx:ExecutionContext)=>{ ctx.waitUntil(ingestAll(env.DB).then(r=>console.log('sync',r)).catch(err=>console.error('sync failed',err))) },
+  scheduled:async (_controller:ScheduledController,env:Env,ctx:ExecutionContext)=>{ ctx.waitUntil(syncAndRefreshEdition(env.DB).then(r=>console.log('sync',r)).catch(err=>console.error('sync failed',err))) },
 } satisfies ExportedHandler<Env>
