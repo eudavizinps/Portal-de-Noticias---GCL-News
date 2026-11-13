@@ -7,6 +7,8 @@ Produção: <https://gcl-news.davi-de-paula035.workers.dev>. O banco D1 e a chav
 ## Funcionalidades implementadas
 
 - Layout editorial responsivo (desktop, tablet e celular), tema claro/escuro, carrossel com destaque automático e controle manual.
+- Página inicial inspirada no mockup enviado, com destaques, notícias em alta, atualizações recentes, editorias e cartões compactos.
+- Painel de mercado e página `/mercado` com Ibovespa, PETR4, VALE3 e ITUB4 em widgets oficiais do TradingView. Dados da B3 têm atraso de aproximadamente 15 minutos; o painel informa essa condição e mantém a atribuição ao fornecedor.
 - Até cinco destaques atualizados após cada coleta bem-sucedida; seleção por data e relevância, com diversidade de editoria e tentativa de evitar repetições recentes.
 - Arquivo pesquisável e paginado, sete categorias, páginas individuais de notícia e compartilhamento por link.
 - Notícias salvas por dispositivo usando `localStorage` (não sincronizadas entre pessoas).
@@ -31,6 +33,7 @@ Produção: <https://gcl-news.davi-de-paula035.workers.dev>. O banco D1 e a chav
 | Tradução | Cloudflare Workers AI (`@cf/meta/m2m100-1.2b`) |
 | Agendamento | Cloudflare Workers Cron Triggers |
 | Hospedagem | Cloudflare Workers Static Assets (front-end e API no mesmo domínio) |
+| Mercado | Widgets TradingView com símbolos da B3 e atribuição ao fornecedor |
 
 ## Requisitos
 

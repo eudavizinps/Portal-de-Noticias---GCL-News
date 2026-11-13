@@ -36,3 +36,12 @@ test('Publicações mantêm fonte e data, e o portal não fabrica conteúdo de p
  assert.match(read('frontend/hooks/useNews.ts'),/import\.meta\.env\.DEV/)
  assert.match(read('frontend/hooks/useNews.ts'),/setEdition\(\[\]\)/)
 })
+
+test('O painel financeiro usa símbolos reais e permite carregar o widget pela política de segurança',()=>{
+ const app=read('frontend/App.tsx')
+ for(const symbol of ['IBOV','PETR4','VALE3','ITUB4'])assert.match(app,new RegExp(`BMFBOVESPA:${symbol}`))
+ assert.doesNotMatch(app,/GCLT3/)
+ assert.match(read('index.html'),/widgets\.tradingview-widget\.com\/w\/br\/tv-mini-chart\.js/)
+ assert.match(read('public/_headers'),/script-src[^;]*tradingview-widget\.com/)
+ assert.match(read('public/_headers'),/connect-src[^;]*tradingview\.com/)
+})

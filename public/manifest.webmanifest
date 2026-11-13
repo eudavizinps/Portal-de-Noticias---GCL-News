@@ -5,8 +5,8 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#090a12",
-  "theme_color": "#7950e8",
+  "background_color": "#fbfaff",
+  "theme_color": "#f7f2ff",
   "lang": "pt-BR",
   "icons": [{"src":"/gcl-news-logo.png","sizes":"1254x1254","type":"image/png","purpose":"any"}]
 }
